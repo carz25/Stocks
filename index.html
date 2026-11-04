@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Stock Watcher Terminal - 31 Assets</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #0b0e14; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+    .glass { background: rgba(18, 24, 38, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .glow-green { box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
+    .glow-red { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0e14; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Navigation Bar -->
+  <header class="glass sticky top-0 z-50 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/30">
+        <i data-lucide="line-chart" class="w-6 h-6 text-white"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg leading-none text-white tracking-wide">GEMINI QUANT TERMINAL</h1>
+        <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Live Watchlist: 31 Assets (US & TSX)
+        </p>
+      </div>
+    </div>
+
+    <!-- Controls & Search -->
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <input type="text" id="stock-search" oninput="filterStocks()" placeholder="Search ticker or name..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-48 sm:w-64">
+      </div>
+      <nav class="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-1.5 text-xs font-semibold rounded-lg text-white bg-indigo-600 shadow transition-all">
+          Dashboard
+        </button>
+        <button onclick="switchTab('treemap')" id="tab-treemap" class="px-4 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
+          Heatmap / Treemap
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+
+    <!-- TAB 1: DASHBOARD & ANALYTICS -->
+    <div id="view-dashboard" class="space-y-6">
+      
+      <!-- Top Metrics Bar -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass p-4 rounded-xl">
+          <div class="text-slate-400 text-xs font-medium">Monitored Assets</div>
+          <div class="text-2xl font-bold text-white mt-1">31 Stocks & ETFs</div>
+          <div class="text-xs text-emerald-400 mt-1">US Equities, TSX & Specialized ETFs</div>
+        </div>
+        <div class="glass p-4 rounded-xl">
+          <div class="text-slate-400 text-xs font-medium">Top Momentum Gainer</div>
+          <div class="text-2xl font-bold text-emerald-400 mt-1" id="top-gainer">NVDA (+3.42%)</div>
+          <div class="text-xs text-slate-400 mt-1">Leading AI Semiconductor</div>
+        </div>
+        <div class="glass p-4 rounded-xl">
+          <div class="text-slate-400 text-xs font-medium">Gemini AI Overall Sentiment</div>
+          <div class="text-2xl font-bold text-indigo-400 mt-1">BULLISH (77%)</div>
+          <div class="text-xs text-slate-400 mt-1">24 Buy / 5 Hold / 2 Sell</div>
+        </div>
+        <div class="glass p-4 rounded-xl">
+          <div class="text-slate-400 text-xs font-medium">Market Feeds</div>
+          <div class="text-2xl font-bold text-amber-400 mt-1">NYSE / NASDAQ / TSX</div>
+          <div class="text-xs text-slate-400 mt-1">Real-time tick engine enabled</div>
+        </div>
+      </div>
+
+      <!-- Main Grid: Stock List + Stock Detail Panel -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Stock List (5 cols) -->
+        <div class="lg:col-span-5 glass rounded-xl overflow-hidden flex flex-col h-[680px]">
+          <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+            <h2 class="font-semibold text-white text-sm">Custom Watchlist (<span id="visible-count">31</span>)</h2>
+            <div class="flex gap-2">
+              <button onclick="filterByRec('ALL')" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">All</button>
+              <button onclick="filterByRec('BUY')" class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 hover:bg-emerald-900">Buy</button>
+              <button onclick="filterByRec('HOLD')" class="text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-400 hover:bg-amber-900">Hold</button>
+            </div>
+          </div>
+          <div class="overflow-y-auto flex-1 divide-y divide-slate-800/50" id="stock-list-container">
+            <!-- Stock Items injected via JS -->
+          </div>
+        </div>
+
+        <!-- Right Column: Selected Stock Deep-Dive (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+          <div class="glass rounded-xl p-6 flex flex-col h-[680px] overflow-y-auto" id="stock-detail-panel">
+            <!-- Details injected via JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: TREEMAP -->
+    <div id="view-treemap" class="hidden space-y-4">
+      <div class="glass p-6 rounded-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-white">31-Stock Market Heatmap</h2>
+            <p class="text-slate-400 text-sm">Visualizing performance scaled across all tracked US & TSX assets</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-emerald-500 rounded-sm"></span> Gainers</div>
+            <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-rose-500 rounded-sm"></span> Losers</div>
+          </div>
+        </div>
+        <div id="treemap-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 min-h-[550px]">
+          <!-- Treemap blocks will be rendered here -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let stocks = [{'ticker': 'AAPL', 'name': 'Apple Inc.', 'price': 232.1, 'change': 0.85, 'cap': '3.52T', 'pe': 34.2, 'recommendation': 'HOLD', 'signalText': 'Steady iPhone hardware refresh cycle offset by European regulatory headwinds.', 'target': '$245.00'}, {'ticker': 'MSFT', 'name': 'Microsoft Corp.', 'price': 428.5, 'change': 1.15, 'cap': '3.18T', 'pe': 36.1, 'recommendation': 'BUY', 'signalText': 'Azure cloud monetization and Copilot enterprise AI adoption remain top-tier.', 'target': '$480.00'}, {'ticker': 'GOOG', 'name': 'Alphabet Inc. (Class C)', 'price': 176.8, 'change': -0.65, 'cap': '2.18T', 'pe': 24.5, 'recommendation': 'BUY', 'signalText': 'Search dominance intact with expanding YouTube advertising and Gemini Cloud margins.', 'target': '$205.00'}, {'ticker': 'ORCL', 'name': 'Oracle Corp.', 'price': 175.4, 'change': 2.3, 'cap': '485B', 'pe': 41.8, 'recommendation': 'BUY', 'signalText': 'Massive multi-cloud infrastructure growth & OpenAI / AWS partnership expansion.', 'target': '$200.00'}, {'ticker': 'META', 'name': 'Meta Platforms Inc.', 'price': 582.1, 'change': 2.1, 'cap': '1.47T', 'pe': 28.3, 'recommendation': 'BUY', 'signalText': 'Ad tech AI optimization yielding record ARPU across Family of Apps.', 'target': '$640.00'}, {'ticker': 'TSLA', 'name': 'Tesla Inc.', 'price': 218.3, 'change': -2.8, 'cap': '695B', 'pe': 62.8, 'recommendation': 'SELL', 'signalText': 'EV margin compression and autonomous scaling timelines present near-term risks.', 'target': '$180.00'}, {'ticker': 'AMZN', 'name': 'Amazon.com Inc.', 'price': 186.4, 'change': 1.45, 'cap': '1.94T', 'pe': 41.2, 'recommendation': 'BUY', 'signalText': 'AWS acceleration and retail margin expansion support robust upward thesis.', 'target': '$220.00'}, {'ticker': 'NVDA', 'name': 'NVIDIA Corp.', 'price': 138.25, 'change': 3.42, 'cap': '3.40T', 'pe': 58.4, 'recommendation': 'BUY', 'signalText': 'Dominant AI semiconductor architecture demand drives unprecedented datacenter sales.', 'target': '$165.00'}, {'ticker': 'HHSI', 'name': 'Hanseul Health System', 'price': 0.08, 'change': 0.0, 'cap': '5M', 'pe': 'N/A', 'recommendation': 'SELL', 'signalText': 'High volatility microcap asset with limited liquidity and fundamental data.', 'target': '$0.05'}, {'ticker': 'SNDK', 'name': 'SanDisk Corp. / Flash Tech', 'price': 54.2, 'change': 1.1, 'cap': '11B', 'pe': 18.5, 'recommendation': 'HOLD', 'signalText': 'NAND flash memory pricing cyclical recovery stabilizing quarterly margins.', 'target': '$58.00'}, {'ticker': 'SOXX', 'name': 'iShares Semiconductor ETF', 'price': 224.5, 'change': 2.85, 'cap': '14B', 'pe': 32.1, 'recommendation': 'BUY', 'signalText': 'Broad semiconductor sector index benefiting from global AI hardware capex spend.', 'target': '$255.00'}, {'ticker': 'SPCX', 'name': 'Spacex / Special Purpose Corp', 'price': 28.4, 'change': -0.15, 'cap': '250M', 'pe': 'N/A', 'recommendation': 'HOLD', 'signalText': 'SPAC acquisition candidate with treasury yield baseline backing.', 'target': '$30.00'}, {'ticker': 'MU', 'name': 'Micron Technology', 'price': 108.9, 'change': 2.15, 'cap': '120B', 'pe': 22.4, 'recommendation': 'BUY', 'signalText': 'HBM3E memory demand for AI accelerators creates multi-quarter backlog.', 'target': '$135.00'}, {'ticker': 'UFO', 'name': 'Procure Space ETF', 'price': 19.8, 'change': 0.4, 'cap': '45M', 'pe': 21.0, 'recommendation': 'HOLD', 'signalText': 'Niche space industry ETF with long-term satellite & defense sector optionality.', 'target': '$22.00'}, {'ticker': 'INTC', 'name': 'Intel Corp.', 'price': 22.8, 'change': -1.45, 'cap': '97B', 'pe': 'N/A', 'recommendation': 'SELL', 'signalText': 'Foundry turnaround execution risks and x86 market share loss to AMD/ARM.', 'target': '$19.00'}, {'ticker': 'CBRS', 'name': 'CBR Pharmaceuticals / CBRS', 'price': 3.45, 'change': -0.8, 'cap': '85M', 'pe': 'N/A', 'recommendation': 'SELL', 'signalText': 'Speculative small-cap biotech asset contingent on clinical trial readouts.', 'target': '$2.80'}, {'ticker': 'QQC.TO', 'name': 'Invesco NASDAQ-100 CAD', 'price': 142.1, 'change': 1.25, 'cap': '2.4B', 'pe': 31.4, 'recommendation': 'BUY', 'signalText': 'Core Canadian index tracking top 100 non-financial NASDAQ growth giants.', 'target': '$160.00'}, {'ticker': 'XEQT.TO', 'name': 'iShares Core Equity ETF Portfolio', 'price': 32.4, 'change': 0.35, 'cap': '4.8B', 'pe': 18.2, 'recommendation': 'BUY', 'signalText': 'Ultimate globally diversified 100% equity ETF portfolio for compounding growth.', 'target': '$36.00'}, {'ticker': 'VFV.TO', 'name': 'Vanguard S&P 500 Index ETF (CAD)', 'price': 134.8, 'change': 0.7, 'cap': '14.2B', 'pe': 26.8, 'recommendation': 'BUY', 'signalText': 'Gold standard Canadian ETF for low-cost exposure to US S&P 500 equities.', 'target': '$150.00'}, {'ticker': 'VGT', 'name': 'Vanguard Information Tech ETF', 'price': 575.4, 'change': 1.95, 'cap': '75B', 'pe': 35.8, 'recommendation': 'BUY', 'signalText': 'Overweight exposure to mega-cap US tech leaders with strong cash flows.', 'target': '$630.00'}, {'ticker': 'TEC', 'name': 'TD Global Technology Leaders ETF', 'price': 41.2, 'change': 1.1, 'cap': '2.1B', 'pe': 33.1, 'recommendation': 'BUY', 'signalText': 'Global tech ETF offering broad international and US technology exposure.', 'target': '$46.00'}, {'ticker': 'NFLX', 'name': 'Netflix Inc.', 'price': 745.2, 'change': 2.45, 'cap': '320B', 'pe': 44.2, 'recommendation': 'BUY', 'signalText': 'Ad-supported tier growth and gaming integration driving subscriber monetization.', 'target': '$820.00'}, {'ticker': 'HEB.TO', 'name': 'Hemisphere Energy Corp', 'price': 1.68, 'change': -0.5, 'cap': '168M', 'pe': 6.8, 'recommendation': 'BUY', 'signalText': 'High-yield junior energy producer with robust free cash flow payout ratio.', 'target': '$2.10'}, {'ticker': 'DOL.TO', 'name': 'Dollarama Inc.', 'price': 138.5, 'change': 0.4, 'cap': '38B', 'pe': 32.5, 'recommendation': 'BUY', 'signalText': 'Defensive retail compounder benefiting from value-conscious consumer shifts.', 'target': '$152.00'}, {'ticker': 'BANK.TO', 'name': 'Evolve Canadian Banks ETF', 'price': 24.1, 'change': 0.25, 'cap': '650M', 'pe': 11.2, 'recommendation': 'BUY', 'signalText': 'Covered call strategy on Canadian big 6 banks generating high monthly income.', 'target': '$26.50'}, {'ticker': 'RY.TO', 'name': 'Royal Bank of Canada', 'price': 172.3, 'change': 0.6, 'cap': '244B', 'pe': 13.5, 'recommendation': 'BUY', 'signalText': "Canada's largest financial institution with premier wealth management franchise.", 'target': '$190.00'}, {'ticker': 'CM.TO', 'name': 'Canadian Imperial Bank of Commerce', 'price': 84.5, 'change': 0.8, 'cap': '79B', 'pe': 11.8, 'recommendation': 'HOLD', 'signalText': 'Solid dividend yield backed by improving domestic credit performance.', 'target': '$92.00'}, {'ticker': 'TD.TO', 'name': 'Toronto-Dominion Bank', 'price': 78.9, 'change': -0.3, 'cap': '138B', 'pe': 10.9, 'recommendation': 'BUY', 'signalText': 'US retail banking resolution clears overhang; strong balance sheet reserves.', 'target': '$88.00'}, {'ticker': 'BMO.TO', 'name': 'Bank of Montreal', 'price': 128.4, 'change': 0.45, 'cap': '93B', 'pe': 12.1, 'recommendation': 'BUY', 'signalText': 'Bank of the West integration benefits accelerating Commercial lending growth.', 'target': '$140.00'}, {'ticker': 'KMI', 'name': 'Kinder Morgan Inc.', 'price': 24.8, 'change': 0.3, 'cap': '55B', 'pe': 18.6, 'recommendation': 'BUY', 'signalText': 'Natural gas pipeline infrastructure demand driven by LNG exports and AI power grids.', 'target': '$28.00'}, {'ticker': 'AIQ', 'name': 'Global X Artificial Intelligence ETF', 'price': 38.9, 'change': 1.65, 'cap': '2.1B', 'pe': 30.5, 'recommendation': 'BUY', 'signalText': 'Diversified thematic basket tracking AI software, hardware, and infrastructure.', 'target': '$44.00'}];
+    let filteredStocks = [...stocks];
+    let selectedTicker = 'AAPL';
+    let chartInstance = null;
+
+    function filterStocks() {
+      const q = document.getElementById('stock-search').value.toLowerCase();
+      filteredStocks = stocks.filter(s => s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+      document.getElementById('visible-count').innerText = filteredStocks.length;
+      renderStockList();
+    }
+
+    function filterByRec(rec) {
+      if (rec === 'ALL') filteredStocks = [...stocks];
+      else filteredStocks = stocks.filter(s => s.recommendation === rec);
+      document.getElementById('visible-count').innerText = filteredStocks.length;
+      renderStockList();
+    }
+
+    function renderStockList() {
+      const container = document.getElementById('stock-list-container');
+      container.innerHTML = filteredStocks.map(stock => {
+        const isSelected = stock.ticker === selectedTicker;
+        const isPositive = stock.change >= 0;
+        return `
+          <div onclick="selectStock('${stock.ticker}')" class="p-3.5 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-indigo-900/40 border-l-4 border-indigo-500' : 'hover:bg-slate-800/40'}">
+            <div>
+              <div class="font-bold text-white text-sm flex items-center gap-2">
+                ${stock.ticker}
+                <span class="text-[10px] px-1.5 py-0.2 rounded font-mono ${stock.recommendation === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : stock.recommendation === 'SELL' ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'}">${stock.recommendation}</span>
+              </div>
+              <div class="text-xs text-slate-400 truncate max-w-[150px]">${stock.name}</div>
+            </div>
+            <div class="text-right">
+              <div class="font-mono text-sm text-white">$${stock.price.toFixed(2)}</div>
+              <div class="font-mono text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-end gap-1">
+                ${isPositive ? '▲ +' : '▼ '}${stock.change.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectStock(ticker) {
+      selectedTicker = ticker;
+      renderStockList();
+      const stock = stocks.find(s => s.ticker === ticker);
+      const isPositive = stock.change >= 0;
+      
+      const panel = document.getElementById('stock-detail-panel');
+      panel.innerHTML = `
+        <div class="flex items-start justify-between border-b border-slate-800 pb-4 mb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+              ${stock.name} (${stock.ticker})
+            </h2>
+            <div class="text-sm text-slate-400 mt-0.5">Market Cap: <span class="text-slate-200">${stock.cap}</span> | P/E: <span class="text-slate-200">${stock.pe}</span></div>
+          </div>
+          <div class="text-right">
+            <div class="text-3xl font-extrabold font-mono text-white">$${stock.price.toFixed(2)}</div>
+            <div class="text-sm font-mono ${isPositive ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
+              ${isPositive ? '+' : ''}${stock.change.toFixed(2)}% Today
+            </div>
+          </div>
+        </div>
+
+        <!-- Gemini AI Recommendation Card -->
+        <div class="glass p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20 mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-indigo-400 tracking-wider flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-4 h-4"></i> GEMINI QUANT AI SIGNAL
+            </span>
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${stock.recommendation === 'BUY' ? 'bg-emerald-500 text-slate-950' : stock.recommendation === 'SELL' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-slate-950'}">
+              RECOMMENDATION: ${stock.recommendation}
+            </span>
+          </div>
+          <p class="text-sm text-slate-200 leading-relaxed">${stock.signalText}</p>
+          <div class="mt-3 pt-3 border-t border-indigo-500/20 flex items-center justify-between text-xs text-slate-400">
+            <span>Model Target Price (12M): <strong class="text-white font-mono">${stock.target}</strong></span>
+            <span>Confidence Score: <strong class="text-emerald-400">88%</strong></span>
+          </div>
+        </div>
+
+        <!-- Price Chart -->
+        <div class="mb-4">
+          <h3 class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Intraday Simulated Price Action</h3>
+          <div class="h-56 w-full">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+      `;
+
+      lucide.createIcons();
+      renderChart();
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('stockChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+      
+      const labels = ['9:30 AM', '10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM', '4:00 PM'];
+      const dataPoints = Array.from({length: 8}, () => (Math.random() * 8 - 4 + 100));
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Price Action',
+            data: dataPoints,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } },
+            y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderTreemap() {
+      const container = document.getElementById('treemap-grid');
+      container.innerHTML = stocks.map(stock => {
+        const isPositive = stock.change >= 0;
+        return `
+          <div onclick="switchTab('dashboard'); selectStock('${stock.ticker}');" 
+               class="p-3 rounded-xl flex flex-col justify-between cursor-pointer transition-transform hover:scale-[1.02] ${isPositive ? 'bg-emerald-950/60 border border-emerald-500/40 glow-green' : 'bg-rose-950/60 border border-rose-500/40 glow-red'} min-h-[95px]">
+            <div class="flex items-center justify-between">
+              <span class="font-extrabold text-sm text-white">${stock.ticker}</span>
+              <span class="text-[10px] text-slate-300 font-mono">${stock.cap}</span>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-300 truncate">${stock.name}</div>
+              <div class="text-sm font-bold font-mono mt-0.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
+                ${isPositive ? '+' : ''}${stock.change.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    setInterval(() => {
+      stocks.forEach(stock => {
+        const delta = (Math.random() - 0.49) * 0.35;
+        stock.price = Math.max(0.01, stock.price + delta);
+        stock.change += delta * 0.15;
+      });
+      renderStockList();
+      if (!document.getElementById('view-treemap').classList.contains('hidden')) {
+        renderTreemap();
+      }
+    }, 2500);
+
+    function switchTab(tab) {
+      if (tab === 'dashboard') {
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        document.getElementById('view-treemap').classList.add('hidden');
+        document.getElementById('tab-dashboard').className = "px-4 py-1.5 text-xs font-semibold rounded-lg text-white bg-indigo-600 shadow transition-all";
+        document.getElementById('tab-treemap').className = "px-4 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
+      } else {
+        document.getElementById('view-dashboard').classList.add('hidden');
+        document.getElementById('view-treemap').classList.remove('hidden');
+        document.getElementById('tab-treemap').className = "px-4 py-1.5 text-xs font-semibold rounded-lg text-white bg-indigo-600 shadow transition-all";
+        document.getElementById('tab-dashboard').className = "px-4 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
+        renderTreemap();
+      }
+    }
+
+    window.onload = () => {
+      lucide.createIcons();
+      renderStockList();
+      selectStock('AAPL');
+    };
+  </script>
+</body>
+</html>
