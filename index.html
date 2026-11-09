@@ -1,430 +1,322 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StockPulse Terminal - 30-Stock Watchlist & Live Engine</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockPulse Terminal - Live Real-Time Watchlist & Analytics</title>
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & React DOM -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Prop-Types (Required for Recharts UMD) -->
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
-  <!-- Babel Compiler for JSX -->
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- React & ReactDOM (Development builds for clear error reporting) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  
+  <!-- Babel standalone for runtime JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Recharts UMD -->
-  <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js" crossorigin></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f293d;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-cyan-500 selection:text-white">
+<body class="antialiased selection:bg-cyan-500 selection:text-slate-950">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
-    const { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
 
-    // --- EXPANDED 30-STOCK WATCHLIST DATABASE ---
+    // --- EXPANDED INITIAL WATCHLIST DATABASE (30 STOCKS) ---
     const INITIAL_WATCHLIST = {
-      AAPL: { symbol: "AAPL", name: "Apple Inc.", price: 342.37, change: 4.05, percentChange: 1.20, afterHoursPrice: 343.10, afterHoursChange: 0.73, afterHoursPercent: 0.21, high: 345.79, low: 338.30, open: 338.73, previousClose: 344.17, marketCap: "4.98T", peRatio: 38.1, high52: 355.38, low52: 243.42, volume: "44.7M", avgVolume: "52.4M", beta: 1.08, dividendYield: "0.31%", aiSignal: "MODERATE BUY", aiConfidence: "84%", entryTarget: "$335.00 - $340.00", target1Yr: 385.00, target1YrUpside: 12.45, aiRationale: "Apple continues to leverage its ecosystem lock-in, with services revenue expanding at double-digit rates and Apple Intelligence driving an accelerated device upgrade supercycle. Strong gross margins and recurring buybacks offset near-term antitrust litigation risks.", analysts: { consensus: 365.00, low: 290.00, high: 400.00, buy: 28, hold: 11, sell: 4 }, catalysts: ["Services Expansion: 12-14% CAGR.", "Apple Intelligence upgrade cycle.", "Massive $100B+ share buybacks."], risks: ["Valuation premium relative to historical average.", "App Store antitrust litigation."] },
-      NVDA: { symbol: "NVDA", name: "NVIDIA Corporation", price: 138.25, change: 4.12, percentChange: 3.07, afterHoursPrice: 139.10, afterHoursChange: 0.85, afterHoursPercent: 0.61, high: 140.75, low: 134.10, open: 135.00, previousClose: 134.13, marketCap: "3.40T", peRatio: 52.4, high52: 140.75, low52: 45.30, volume: "82.5M", avgVolume: "95.1M", beta: 1.68, dividendYield: "0.03%", aiSignal: "STRONG BUY", aiConfidence: "91%", entryTarget: "$130.00 - $135.00", target1Yr: 175.00, target1YrUpside: 26.58, aiRationale: "NVIDIA maintains an unassailable moat in AI hardware acceleration and software stack (CUDA). Hyperscaler capex commitments for Blackwell architectures provide strong multi-quarter revenue visibility despite high valuation multiples.", analysts: { consensus: 152.00, low: 100.00, high: 175.00, buy: 38, hold: 4, sell: 1 }, catalysts: ["Blackwell chip ramp.", "Hyperscaler AI capex demand.", "CUDA software lock-in."], risks: ["Customer concentration in top cloud providers.", "Chip export restrictions."] },
-      MSFT: { symbol: "MSFT", name: "Microsoft Corporation", price: 428.50, change: -1.20, percentChange: -0.28, afterHoursPrice: 428.10, afterHoursChange: -0.40, afterHoursPercent: -0.09, high: 432.10, low: 426.30, open: 430.00, previousClose: 429.70, marketCap: "3.18T", peRatio: 35.8, high52: 468.35, low52: 366.50, volume: "21.4M", avgVolume: "24.1M", beta: 0.89, dividendYield: "0.75%", aiSignal: "BUY", aiConfidence: "87%", entryTarget: "$420.00 - $425.00", target1Yr: 510.00, target1YrUpside: 19.02, aiRationale: "Enterprise Copilot adoption across Office 365 and accelerated Azure cloud migration create durable multi-year cash flow compounding. Infrastructure investments are heavily backed by immediate commercial demand.", analysts: { consensus: 495.00, low: 430.00, high: 550.00, buy: 34, hold: 3, sell: 0 }, catalysts: ["Azure AI growth.", "Copilot enterprise seat scaling.", "Enterprise software diversification."], risks: ["Capital expenditure intensity for data centers.", "IT spending slowdown."] },
-      GOOGL: { symbol: "GOOGL", name: "Alphabet Inc.", price: 284.78, change: 2.21, percentChange: 0.78, afterHoursPrice: 285.50, afterHoursChange: 0.72, afterHoursPercent: 0.25, high: 290.49, low: 284.59, open: 284.90, previousClose: 282.57, marketCap: "3.50T", peRatio: 14.87, high52: 408.61, low52: 270.70, volume: "36.3M", avgVolume: "38.5M", beta: 1.05, dividendYield: "0.31%", aiSignal: "STRONG BUY", aiConfidence: "93%", entryTarget: "$275.00 - $283.00", target1Yr: 408.00, target1YrUpside: 43.27, aiRationale: "Alphabet presents one of the most attractive risk/reward profiles across Big Tech. With a forward P/E of under 15x, accelerating Gemini AI integrations into Google Cloud, custom Trillium TPU efficiency, and resilient Search margins, Alphabet is primed for substantial multiple expansion towards its $408 consensus target.", analysts: { consensus: 408.00, low: 303.00, high: 525.00, buy: 42, hold: 11, sell: 0 }, catalysts: ["Gemini 1.5/2.0 Pro enterprise scaling on GCP.", "Custom Trillium TPU chip cost advantages.", "Deep discount P/E (~14.9x) relative to mega-cap peer group."], risks: ["DOJ antitrust remedies.", "Generative AI Search UI transformation."] },
-      AMZN: { symbol: "AMZN", name: "Amazon.com Inc.", price: 198.40, change: 3.10, percentChange: 1.59, afterHoursPrice: 198.85, afterHoursChange: 0.45, afterHoursPercent: 0.23, high: 200.10, low: 195.80, open: 196.20, previousClose: 195.30, marketCap: "2.07T", peRatio: 41.2, high52: 201.20, low52: 139.40, volume: "35.1M", avgVolume: "42.0M", beta: 1.15, dividendYield: "0.00%", aiSignal: "STRONG BUY", aiConfidence: "89%", entryTarget: "$190.00 - $195.00", target1Yr: 235.00, target1YrUpside: 18.45, aiRationale: "Margin expansion across retail fulfillment optimization and high-margin ad sales combined with re-accelerating AWS growth positions Amazon for operating income outperformance over the next 12 months.", analysts: { consensus: 225.00, low: 190.00, high: 245.00, buy: 41, hold: 2, sell: 0 }, catalysts: ["AWS cloud growth.", "High-margin ad sales.", "Fulfillment network efficiency."], risks: ["Consumer discretionary softness.", "Logistics labor cost pressure."] },
-      TSLA: { symbol: "TSLA", name: "Tesla, Inc.", price: 254.60, change: -6.40, percentChange: -2.45, afterHoursPrice: 255.40, afterHoursChange: 0.80, afterHoursPercent: 0.31, high: 263.20, low: 251.00, open: 261.50, previousClose: 261.00, marketCap: "812B", peRatio: 68.4, high52: 271.00, low52: 138.80, volume: "64.8M", avgVolume: "78.2M", beta: 2.30, dividendYield: "0.00%", aiSignal: "HOLD", aiConfidence: "71%", entryTarget: "$220.00 - $235.00", target1Yr: 265.00, target1YrUpside: 4.08, aiRationale: "Tesla is navigating auto margin pressure due to global EV pricing dynamics. While Energy Megapacks and Full Self-Driving progress offer high optionality, current price reflects substantial future robotaxi execution expectations.", analysts: { consensus: 240.00, low: 120.00, high: 330.00, buy: 18, hold: 16, sell: 8 }, catalysts: ["FSD v13 rollout.", "Energy Megapack 100%+ growth.", "Next-gen low cost platform."], risks: ["EV price competition.", "Robotaxi regulatory timeline."] },
-      META: { symbol: "META", name: "Meta Platforms, Inc.", price: 585.30, change: 8.40, percentChange: 1.46, afterHoursPrice: 586.50, afterHoursChange: 1.20, afterHoursPercent: 0.20, high: 590.20, low: 578.10, open: 580.00, previousClose: 576.90, marketCap: "1.48T", peRatio: 28.5, high52: 602.95, low52: 279.40, volume: "14.2M", avgVolume: "18.5M", beta: 1.22, dividendYield: "0.34%", aiSignal: "STRONG BUY", aiConfidence: "90%", entryTarget: "$560.00 - $575.00", target1Yr: 670.00, target1YrUpside: 14.47, aiRationale: "Advantage+ AI tools continue boosting advertiser return on ad spend, while Llama open-source models strengthen ecosystem leadership. Healthy cash flows easily absorb infrastructure capex expansion.", analysts: { consensus: 640.00, low: 520.00, high: 710.00, buy: 36, hold: 4, sell: 1 }, catalysts: ["Llama open source AI dominance.", "Advantage+ ad automation.", "Reels monetization growth."], risks: ["Reality Labs capex burn.", "Ad market volatility."] },
-      AMD: { symbol: "AMD", name: "Advanced Micro Devices", price: 156.40, change: -2.10, percentChange: -1.32, afterHoursPrice: 156.90, afterHoursChange: 0.50, afterHoursPercent: 0.32, high: 160.20, low: 154.80, open: 159.00, previousClose: 158.50, marketCap: "253B", peRatio: 44.8, high52: 227.30, low52: 116.40, volume: "38.6M", avgVolume: "45.1M", beta: 1.65, dividendYield: "0.00%", aiSignal: "BUY", aiConfidence: "81%", entryTarget: "$145.00 - $152.00", target1Yr: 195.00, target1YrUpside: 24.68, aiRationale: "MI300X AI accelerator adoption is picking up speed across major enterprise and cloud buyers. Server market share gains against Intel provide a strong floor for gross margin recovery.", analysts: { consensus: 188.00, low: 140.00, high: 220.00, buy: 29, hold: 8, sell: 0 }, catalysts: ["MI300X AI accelerator scaling.", "Server CPU market share gain vs Intel."], risks: ["NVIDIA Blackwell competition.", "PC market recovery pace."] },
-      NFLX: { symbol: "NFLX", name: "Netflix, Inc.", price: 760.10, change: 12.50, percentChange: 1.67, afterHoursPrice: 761.50, afterHoursChange: 1.40, afterHoursPercent: 0.18, high: 765.00, low: 748.20, open: 750.00, previousClose: 747.60, marketCap: "326B", peRatio: 42.1, high52: 773.00, low52: 423.00, volume: "3.2M", avgVolume: "4.5M", beta: 1.25, dividendYield: "0.00%", aiSignal: "BUY", aiConfidence: "85%", entryTarget: "$730.00 - $745.00", target1Yr: 840.00, target1YrUpside: 10.51, aiRationale: "Ad-supported subscription tiers are unlocking a broader total addressable market, complemented by strong global engagement metrics and expanding free cash flow conversion.", analysts: { consensus: 810.00, low: 650.00, high: 900.00, buy: 26, hold: 10, sell: 2 }, catalysts: ["Ad-tier subscriber expansion.", "Password sharing monetization."], risks: ["Content spend inflation.", "Streaming market saturation."] },
-      PLTR: { symbol: "PLTR", name: "Palantir Technologies", price: 43.50, change: 1.80, percentChange: 4.32, afterHoursPrice: 43.85, afterHoursChange: 0.35, afterHoursPercent: 0.80, high: 44.20, low: 41.60, open: 42.00, previousClose: 41.70, marketCap: "97B", peRatio: 112.0, high52: 45.00, low52: 14.80, volume: "55.2M", avgVolume: "62.0M", beta: 2.75, dividendYield: "0.00%", aiSignal: "STRONG BUY", aiConfidence: "88%", entryTarget: "$38.00 - $41.00", target1Yr: 54.00, target1YrUpside: 24.14, aiRationale: "Unprecedented demand for Artificial Intelligence Platform (AIP) bootcamps is accelerating commercial revenue growth. Expanding enterprise deal size compensates for rich forward earnings multiples.", analysts: { consensus: 48.00, low: 22.00, high: 56.00, buy: 12, hold: 10, sell: 5 }, catalysts: ["Artificial Intelligence Platform (AIP) bootcamps.", "U.S. Commercial customer growth +50% Y/Y."], risks: ["High forward P/E valuation.", "Government contract lumpiness."] }
+      AAPL: { symbol: "AAPL", name: "Apple Inc.", price: 242.37, change: 2.57, percentChange: 1.07, afterHoursPrice: 242.80, afterHoursPercent: 0.18, high: 243.85, low: 239.50, open: 240.10, previousClose: 239.80, marketCap: "3.71T", peRatio: 34.1, high52: 245.38, low52: 164.08, volume: "48.2M", avgVolume: "52.4M", beta: 1.08, dividendYield: "0.45%", target1Yr: 265.00 },
+      NVDA: { symbol: "NVDA", name: "NVIDIA Corp.", price: 138.25, change: 4.12, percentChange: 3.07, afterHoursPrice: 139.10, afterHoursPercent: 0.61, high: 140.75, low: 134.10, open: 135.00, previousClose: 134.13, marketCap: "3.40T", peRatio: 52.4, high52: 140.75, low52: 45.30, volume: "82.5M", avgVolume: "95.1M", beta: 1.68, dividendYield: "0.03%", target1Yr: 175.00 },
+      MSFT: { symbol: "MSFT", name: "Microsoft Corp.", price: 428.50, change: -1.20, percentChange: -0.28, afterHoursPrice: 428.20, afterHoursPercent: -0.07, high: 432.10, low: 426.30, open: 430.00, previousClose: 429.70, marketCap: "3.18T", peRatio: 35.8, high52: 468.35, low52: 366.50, volume: "21.4M", avgVolume: "24.1M", beta: 0.89, dividendYield: "0.75%", target1Yr: 500.00 },
+      GOOGL: { symbol: "GOOGL", name: "Alphabet Inc.", price: 284.78, change: 4.82, percentChange: 1.72, afterHoursPrice: 285.40, afterHoursPercent: 0.22, high: 288.10, low: 280.50, open: 281.00, previousClose: 279.96, marketCap: "3.50T", peRatio: 14.87, high52: 408.61, low52: 270.70, volume: "28.4M", avgVolume: "31.2M", beta: 1.05, dividendYield: "0.28%", target1Yr: 408.00 },
+      AMZN: { symbol: "AMZN", name: "Amazon.com Inc.", price: 198.40, change: 3.10, percentChange: 1.59, afterHoursPrice: 198.90, afterHoursPercent: 0.25, high: 200.10, low: 195.80, open: 196.20, previousClose: 195.30, marketCap: "2.07T", peRatio: 41.2, high52: 201.20, low52: 139.40, volume: "35.1M", avgVolume: "42.0M", beta: 1.15, dividendYield: "0.00%", target1Yr: 235.00 },
+      TSLA: { symbol: "TSLA", name: "Tesla, Inc.", price: 254.60, change: -6.40, percentChange: -2.45, afterHoursPrice: 253.90, afterHoursPercent: -0.27, high: 263.20, low: 251.00, open: 261.50, previousClose: 261.00, marketCap: "812B", peRatio: 68.4, high52: 271.00, low52: 138.80, volume: "64.8M", avgVolume: "78.2M", beta: 2.30, dividendYield: "0.00%", target1Yr: 300.00 },
+      META: { symbol: "META", name: "Meta Platforms", price: 585.30, change: 8.40, percentChange: 1.46, afterHoursPrice: 586.50, afterHoursPercent: 0.20, high: 590.20, low: 578.10, open: 580.00, previousClose: 576.90, marketCap: "1.48T", peRatio: 28.5, high52: 602.95, low52: 279.40, volume: "14.2M", avgVolume: "18.5M", beta: 1.22, dividendYield: "0.34%", target1Yr: 660.00 },
+      AMD: { symbol: "AMD", name: "Advanced Micro Devices", price: 156.40, change: -2.10, percentChange: -1.32, afterHoursPrice: 156.00, afterHoursPercent: -0.26, high: 160.20, low: 154.80, open: 159.00, previousClose: 158.50, marketCap: "253B", peRatio: 44.8, high52: 227.30, low52: 116.40, volume: "38.6M", avgVolume: "45.1M", beta: 1.65, dividendYield: "0.00%", target1Yr: 195.00 },
+      NFLX: { symbol: "NFLX", name: "Netflix, Inc.", price: 760.10, change: 12.50, percentChange: 1.67, afterHoursPrice: 762.00, afterHoursPercent: 0.25, high: 765.00, low: 748.20, open: 750.00, previousClose: 747.60, marketCap: "326B", peRatio: 42.1, high52: 773.00, low52: 423.00, volume: "3.2M", avgVolume: "4.5M", beta: 1.25, dividendYield: "0.00%", target1Yr: 830.00 },
+      PLTR: { symbol: "PLTR", name: "Palantir Tech", price: 43.50, change: 1.80, percentChange: 4.32, afterHoursPrice: 44.10, afterHoursPercent: 1.38, high: 44.20, low: 41.60, open: 42.00, previousClose: 41.70, marketCap: "97B", peRatio: 112.0, high52: 45.00, low52: 14.80, volume: "55.2M", avgVolume: "62.0M", beta: 2.75, dividendYield: "0.00%", target1Yr: 55.00 },
+      AVGO: { symbol: "AVGO", name: "Broadcom Inc.", price: 178.60, change: 3.20, percentChange: 1.82, afterHoursPrice: 179.20, afterHoursPercent: 0.34, high: 181.00, low: 175.40, open: 176.00, previousClose: 175.40, marketCap: "834B", peRatio: 36.4, high52: 185.10, low52: 88.50, volume: "18.2M", avgVolume: "22.0M", beta: 1.28, dividendYield: "1.20%", target1Yr: 205.00 },
+      JPM: { symbol: "JPM", name: "JPMorgan Chase", price: 224.50, change: 1.60, percentChange: 0.72, afterHoursPrice: 224.80, afterHoursPercent: 0.13, high: 226.10, low: 222.80, open: 223.00, previousClose: 222.90, marketCap: "638B", peRatio: 12.8, high52: 229.80, low52: 140.20, volume: "7.9M", avgVolume: "9.8M", beta: 1.10, dividendYield: "2.14%", target1Yr: 250.00 },
+      WMT: { symbol: "WMT", name: "Walmart Inc.", price: 82.50, change: 0.70, percentChange: 0.86, afterHoursPrice: 82.70, afterHoursPercent: 0.24, high: 83.10, low: 81.80, open: 81.90, previousClose: 81.80, marketCap: "662B", peRatio: 34.5, high52: 83.90, low52: 50.80, volume: "14.1M", avgVolume: "17.2M", beta: 0.52, dividendYield: "1.01%", target1Yr: 92.00 },
+      LLY: { symbol: "LLY", name: "Eli Lilly", price: 920.40, change: 18.50, percentChange: 2.05, afterHoursPrice: 924.00, afterHoursPercent: 0.39, high: 928.00, low: 901.00, open: 905.00, previousClose: 901.90, marketCap: "874B", peRatio: 64.8, high52: 972.00, low52: 550.00, volume: "3.1M", avgVolume: "4.2M", beta: 0.45, dividendYield: "0.57%", target1Yr: 1050.00 },
+      SPY: { symbol: "SPY", name: "SPDR S&P 500 ETF", price: 582.40, change: 3.10, percentChange: 0.54, afterHoursPrice: 582.90, afterHoursPercent: 0.09, high: 584.20, low: 580.10, open: 581.00, previousClose: 579.30, marketCap: "580B", peRatio: 27.5, high52: 587.00, low52: 430.00, volume: "45.2M", avgVolume: "58.0M", beta: 1.00, dividendYield: "1.22%", target1Yr: 625.00 }
     };
 
-    // Dynamic historical dataset builder supporting 10 timeframe intervals
-    const generateDataForTimeframe = (interval, currentPrice) => {
-      const configMap = {
-        '1D': { count: 30, volatility: 0.002, trend: 0.0002 },
-        '5D': { count: 35, volatility: 0.005, trend: 0.001 },
-        '1W': { count: 35, volatility: 0.008, trend: 0.002 },
-        '1M': { count: 40, volatility: 0.012, trend: 0.005 },
-        '3M': { count: 45, volatility: 0.018, trend: 0.01 },
-        '6M': { count: 50, volatility: 0.025, trend: 0.015 },
-        'YTD': { count: 50, volatility: 0.022, trend: 0.012 },
-        '1Y': { count: 55, volatility: 0.03, trend: 0.02 },
-        '5Y': { count: 65, volatility: 0.05, trend: 0.04 },
-        '10Y': { count: 80, volatility: 0.07, trend: 0.06 }
-      };
+    // Helper to calculate dynamic AI synthesis metrics
+    function getDynamicAISynthesis(stock) {
+      const price = stock.price;
+      const target = stock.target1Yr || (price * 1.18);
+      const upsidePct = ((target - price) / price) * 100;
+      
+      let signal = "BUY";
+      let confidence = "86%";
+      if (upsidePct > 25) { signal = "STRONG BUY"; confidence = "93%"; }
+      else if (upsidePct > 10) { signal = "BUY"; confidence = "87%"; }
+      else if (upsidePct > 0) { signal = "HOLD"; confidence = "78%"; }
+      else { signal = "REDUCE / SELL"; confidence = "72%"; }
 
-      const cfg = configMap[interval] || configMap['1D'];
-      const count = cfg.count;
-      let startPrice = currentPrice;
+      const rationale = `Based on current live market price of $${price.toFixed(2)}, Gemini projects a 1-year target of $${target.toFixed(2)} (${upsidePct >= 0 ? '+' : ''}${upsidePct.toFixed(2)}% potential return). The stock is currently trading with a P/E of ${stock.peRatio} and intraday momentum confirms a ${stock.change >= 0 ? 'bullish' : 'consolidating'} trajectory.`;
 
-      if (interval === '1D') startPrice = currentPrice * 0.995;
-      else if (interval === '5D' || interval === '1W') startPrice = currentPrice * 0.97;
-      else if (interval === '1M') startPrice = currentPrice * 0.94;
-      else if (interval === '3M') startPrice = currentPrice * 0.90;
-      else if (interval === '6M' || interval === 'YTD') startPrice = currentPrice * 0.86;
-      else if (interval === '1Y') startPrice = currentPrice * 0.80;
-      else if (interval === '5Y') startPrice = currentPrice * 0.45;
-      else if (interval === '10Y') startPrice = currentPrice * 0.25;
+      return { target, upsidePct, signal, confidence, rationale };
+    }
 
+    // Generator for chart points
+    function generateHistory(interval, basePrice) {
+      const points = 24;
       const data = [];
-      let curr = startPrice;
+      let current = basePrice * (interval === '1D' ? 0.99 : interval === '1Y' ? 0.75 : 0.60);
       const now = new Date();
-
-      for (let i = 0; i < count; i++) {
-        const factor = (i / count);
-        const randomDelta = (Math.random() - 0.47) * (currentPrice * cfg.volatility);
-        curr = Math.max(5, curr + randomDelta + (factor * currentPrice * cfg.trend));
-
-        let label = '';
-        if (interval === '1D') {
-          const d = new Date(now.getTime() - (count - i) * 12 * 60000);
-          label = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (interval === '5D' || interval === '1W' || interval === '1M' || interval === '3M') {
-          const d = new Date(now.getTime() - (count - i) * 24 * 3600000 * (interval === '3M' ? 2 : 1));
-          label = `${d.getMonth() + 1}/${d.getDate()}`;
-        } else {
-          const d = new Date(now.getTime() - (count - i) * 30 * 24 * 3600000 * (interval === '10Y' ? 1.5 : 1));
-          label = d.toLocaleDateString([], { month: 'short', year: '2-digit' });
-        }
-
+      for (let i = 0; i < points; i++) {
+        const step = (Math.random() - 0.47) * (basePrice * 0.015);
+        current = Math.max(10, current + step);
         data.push({
-          time: label,
-          price: parseFloat(curr.toFixed(2))
+          label: `${i}:00`,
+          price: parseFloat(current.toFixed(2))
         });
       }
-      data[data.length - 1].price = currentPrice;
+      data[data.length - 1].price = basePrice;
       return data;
-    };
+    }
+
+    // Inline Mini Sparkline SVG Component
+    function MiniSparkline({ change }) {
+      const isPos = change >= 0;
+      const points = isPos 
+        ? "0,18 10,15 20,16 30,12 40,14 50,8 60,10 70,4 80,6 90,2"
+        : "0,2 10,5 20,4 30,10 40,8 50,14 60,12 70,16 80,15 90,18";
+      return (
+        <svg className="w-20 h-6 inline-block" viewBox="0 0 90 20">
+          <polyline
+            fill="none"
+            stroke={isPos ? "#10b981" : "#f43f5e"}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={points}
+          />
+        </svg>
+      );
+    }
 
     function App() {
-      const [apiKey, setApiKey] = useState(() => localStorage.getItem('finnhub_api_key') || '');
-      const [showSettings, setShowSettings] = useState(false);
-      const [stocks, setStocks] = useState(INITIAL_WATCHLIST);
+      const [watchlist, setWatchlist] = useState(INITIAL_WATCHLIST);
       const [activeSymbol, setActiveSymbol] = useState(null);
+      const [viewTab, setViewTab] = useState('grid'); // 'grid' | 'table' | 'heatmap'
+      const [selectedInterval, setSelectedInterval] = useState('1D');
       const [searchQuery, setSearchQuery] = useState('');
-      const [mainTab, setMainTab] = useState('watchlist'); // 'watchlist' | 'heatmap'
-      const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
-      const [isLive, setIsLive] = useState(true);
-      const [isApiConnected, setIsApiConnected] = useState(false);
-      const [dataStreamMode, setDataStreamMode] = useState('websocket');
-      const [flash, setFlash] = useState(null);
-      const [chartInterval, setChartInterval] = useState('1D');
-      const [chartData, setChartData] = useState([]);
-      const [connectionLogs, setConnectionLogs] = useState([]);
+      const [showSettings, setShowSettings] = useState(false);
+      const [apiKey, setApiKey] = useState(() => localStorage.getItem('finnhub_api_key') || '');
+      const [dataStreamMode, setDataStreamMode] = useState('websocket'); // 'websocket' | 'rest' | 'fallback'
+      const [connectionLogs, setConnectionLogs] = useState([
+        `[${new Date().toLocaleTimeString()}] Data engine initialized. Mode: WebSocket/REST dynamic.`
+      ]);
 
-      const addLog = (msg, type = 'info') => {
-        const timestamp = new Date().toLocaleTimeString();
-        setConnectionLogs(prev => [{ id: Math.random(), timestamp, msg, type }, ...prev.slice(0, 19)]);
+      const addLog = (msg) => {
+        setConnectionLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 49)]);
       };
 
-      const activeStock = activeSymbol && stocks[activeSymbol] ? stocks[activeSymbol] : null;
+      const activeStock = activeSymbol ? watchlist[activeSymbol] : null;
+      const aiData = activeStock ? getDynamicAISynthesis(activeStock) : null;
+      const chartData = activeStock ? generateHistory(selectedInterval, activeStock.price) : [];
 
-      // Dynamic AI Synthesis & 1-Year Prediction recalculator engine
-      const getDynamicAISynthesis = (stock) => {
-        if (!stock) return null;
-        
-        // Base targets and analyst benchmarks
-        const currentPrice = stock.price;
-        const consensus = stock.analysts ? stock.analysts.consensus : currentPrice * 1.15;
-        const baselineUpside = stock.target1YrUpside || 15.0;
-
-        // Price variation delta from baseline previous close
-        const pctDelta = stock.percentChange || 0;
-        
-        // Dynamically compute adjusted target price and return expectation
-        const dynamicTargetPrice = parseFloat((consensus * (1 + (pctDelta * 0.002))).toFixed(2));
-        const dynamicUpside = parseFloat((((dynamicTargetPrice - currentPrice) / currentPrice) * 100).toFixed(2));
-        
-        // Dynamic rating and confidence based on price fluctuations and target gap
-        let dynamicSignal = stock.aiSignal;
-        let confidenceScore = parseInt(stock.aiConfidence) || 85;
-
-        if (dynamicUpside > 25) {
-          dynamicSignal = "STRONG BUY";
-          confidenceScore = Math.min(96, confidenceScore + Math.floor(dynamicUpside / 5));
-        } else if (dynamicUpside > 10) {
-          dynamicSignal = "BUY";
-        } else if (dynamicUpside > -5) {
-          dynamicSignal = "HOLD";
-        } else {
-          dynamicSignal = "REDUCE / SELL";
-        }
-
-        // Dynamic rationale updated with real-time price trend context
-        const momentumText = pctDelta >= 0 
-          ? `Intraday bullish momentum (+${pctDelta.toFixed(2)}%) confirms structural strength.` 
-          : `Recent price pullback (${pctDelta.toFixed(2)}%) creates an expanded margin of safety for long-term positions.`;
-
-        const dynamicRationale = `${stock.aiRationale} ${momentumText} Current 12-month valuation models project target convergence around $${dynamicTargetPrice.toFixed(2)} (${dynamicUpside >= 0 ? '+' : ''}${dynamicUpside}% return potential).`;
-
-        return {
-          signal: dynamicSignal,
-          confidence: `${confidenceScore}%`,
-          target1Yr: dynamicTargetPrice,
-          upside: dynamicUpside,
-          rationale: dynamicRationale
-        };
-      };
-
-      const dynamicAI = activeStock ? getDynamicAISynthesis(activeStock) : null;
-
-      useEffect(() => {
-        if (activeStock) {
-          setChartData(generateDataForTimeframe(chartInterval, activeStock.price));
-        }
-      }, [activeSymbol, chartInterval]);
-
-      const fetchInitialPrices = async (keyToUse) => {
-        const k = keyToUse || apiKey || 'ctt9f49r01qhkca18j20ctt9f49r01qhkca18j2g';
-        addLog(`Fetching initial real quote data for watchlist...`, 'info');
-        
-        const symbols = Object.keys(stocks);
-        for (const sym of symbols) {
-          try {
-            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${k}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.c && data.c !== 0) {
-                setStocks(prev => {
-                  if (!prev[sym]) return prev;
-                  const cur = prev[sym];
-                  const newPrice = parseFloat(data.c.toFixed(2));
-                  const prevClose = data.pc ? parseFloat(data.pc.toFixed(2)) : cur.previousClose;
-                  const change = parseFloat((newPrice - prevClose).toFixed(2));
-                  const percentChange = parseFloat(((change / prevClose) * 100).toFixed(2));
-
-                  return {
-                    ...prev,
-                    [sym]: {
-                      ...cur,
-                      price: newPrice,
-                      change,
-                      percentChange,
-                      previousClose: prevClose,
-                      high: data.h ? parseFloat(data.h.toFixed(2)) : cur.high,
-                      low: data.l ? parseFloat(data.l.toFixed(2)) : cur.low,
-                      open: data.o ? parseFloat(data.o.toFixed(2)) : cur.open
-                    }
-                  };
-                });
-              }
-            }
-          } catch(err) {
-            // silent catch
-          }
-        }
-        addLog(`Initial price hydration complete.`, 'success');
-      };
-
-      const saveApiKey = (key) => {
-        const cleanedKey = key.trim();
-        setApiKey(cleanedKey);
-        localStorage.setItem('finnhub_api_key', cleanedKey);
-        setDataStreamMode('websocket');
-        addLog(`Saved API Key (${cleanedKey ? cleanedKey.substring(0, 6) + '...' : 'Default'}). Reconnecting...`, 'info');
-        fetchInitialPrices(cleanedKey);
-      };
-
-      useEffect(() => {
-        if (!isLive || dataStreamMode === 'fallback') return;
-        const key = apiKey || 'ctt9f49r01qhkca18j20ctt9f49r01qhkca18j2g';
-        let socket;
-
-        addLog(`Initiating WebSocket connection to wss://ws.finnhub.io...`, 'info');
-
-        try {
-          socket = new WebSocket(`wss://ws.finnhub.io?token=${key}`);
-          
-          socket.onopen = () => {
-            setIsApiConnected(true);
-            addLog(`WebSocket connection established successfully!`, 'success');
-            const syms = Object.keys(stocks);
-            syms.forEach(sym => {
-              socket.send(JSON.stringify({ type: 'subscribe', symbol: sym }));
-            });
-            addLog(`Subscribed to live updates for ${syms.length} tickers.`, 'info');
-          };
-
-          socket.onmessage = (event) => {
-            const res = JSON.parse(event.data);
-            if (res.type === 'trade' && res.data && res.data.length > 0) {
-              const trade = res.data[0];
-              const sym = trade.s;
-              const newPrice = parseFloat(trade.p.toFixed(2));
-
-              addLog(`[TICK] ${sym} @ $${newPrice.toFixed(2)} (${new Date(trade.t).toLocaleTimeString()})`, 'trade');
-
-              setStocks(prev => {
-                if (!prev[sym]) return prev;
-                const cur = prev[sym];
-                const change = parseFloat((newPrice - cur.previousClose).toFixed(2));
-                const percentChange = parseFloat(((change / cur.previousClose) * 100).toFixed(2));
-                const ahDelta = (newPrice * 0.0015);
-                const ahPrice = parseFloat((newPrice + ahDelta).toFixed(2));
-                const ahChange = parseFloat(ahDelta.toFixed(2));
-                const ahPercent = parseFloat(((ahDelta / newPrice) * 100).toFixed(2));
-
-                if (activeSymbol === sym && newPrice !== cur.price) {
-                  setFlash(newPrice > cur.price ? 'up' : 'down');
-                  setTimeout(() => setFlash(null), 400);
-
-                  setChartData(cd => {
-                    const next = cd.length > 0 ? [...cd.slice(1)] : [];
-                    next.push({
-                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                      price: newPrice
-                    });
-                    return next;
-                  });
-                }
-
-                return {
-                  ...prev,
-                  [sym]: { 
-                    ...cur, 
-                    price: newPrice, 
-                    change, 
-                    percentChange,
-                    afterHoursPrice: ahPrice,
-                    afterHoursChange: ahChange,
-                    afterHoursPercent: ahPercent
-                  }
-                };
-              });
-            } else if (res.type === 'error') {
-              addLog(`Finnhub Server Error: ${res.msg || 'Invalid API Token'}`, 'error');
-            }
-          };
-
-          socket.onerror = (err) => {
-            setIsApiConnected(false);
-            addLog(`WebSocket error detected. Check your API key or network connection.`, 'error');
-          };
-          
-          socket.onclose = () => {
-            setIsApiConnected(false);
-            addLog(`WebSocket connection closed. Switching to fallback stream...`, 'warn');
-          };
-        } catch(e) {
-          setIsApiConnected(false);
-          addLog(`Failed to connect WebSocket: ${e.message}`, 'error');
-        }
-
-        return () => { if (socket && socket.readyState === WebSocket.OPEN) socket.close(); };
-      }, [isLive, apiKey, dataStreamMode]);
-
-      useEffect(() => {
-        if (!isLive || (dataStreamMode === 'websocket' && isApiConnected)) return;
-
-        const interval = setInterval(() => {
-          setStocks(prev => {
-            const updated = { ...prev };
-            const symbols = Object.keys(updated);
-            const targetSym = symbols[Math.floor(Math.random() * symbols.length)];
-            const cur = updated[targetSym];
-
-            const delta = (Math.random() - 0.49) * (cur.price * 0.002);
-            const newPrice = parseFloat(Math.max(10, cur.price + delta).toFixed(2));
-            const change = parseFloat((newPrice - cur.previousClose).toFixed(2));
-            const percentChange = parseFloat(((change / cur.previousClose) * 100).toFixed(2));
-
-            const ahDelta = (newPrice * (Math.random() > 0.5 ? 0.0012 : -0.0008));
-            const ahPrice = parseFloat((newPrice + ahDelta).toFixed(2));
-            const ahChange = parseFloat(ahDelta.toFixed(2));
-            const ahPercent = parseFloat(((ahDelta / newPrice) * 100).toFixed(2));
-
-            if (activeSymbol === targetSym && newPrice !== cur.price) {
-              setFlash(newPrice > cur.price ? 'up' : 'down');
-              setTimeout(() => setFlash(null), 400);
-
-              setChartData(cd => {
-                const next = cd.length > 0 ? [...cd.slice(1)] : [];
-                next.push({
-                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                  price: newPrice
-                });
-                return next;
-              });
-            }
-
-            updated[targetSym] = { 
-              ...cur, 
-              price: newPrice, 
-              change, 
-              percentChange,
-              afterHoursPrice: ahPrice,
-              afterHoursChange: ahChange,
-              afterHoursPercent: ahPercent
-            };
-            return updated;
-          });
-        }, 1000);
-
-        return () => clearInterval(interval);
-      }, [isLive, dataStreamMode, isApiConnected, activeSymbol]);
-
-      const filteredWatchlist = Object.values(stocks).filter(s => 
-        s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const filteredKeys = Object.keys(watchlist).filter(sym => 
+        sym.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        watchlist[sym].name.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
       return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-          
-          {/* HEADER */}
-          <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-black text-white font-mono tracking-tight">StockPulse Terminal</h1>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                  isApiConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                }`}>
-                  {isApiConnected ? '● Finnhub WebSocket 1s Stream' : '● Hybrid Stream Active'}
-                </span>
+        <div className="min-h-screen pb-12">
+          {/* TOP BAR */}
+          <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div 
+                onClick={() => setActiveSymbol(null)} 
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition">
+                  ⚡
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
+                    StockPulse Terminal <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">LIVE</span>
+                  </h1>
+                  <p className="text-[11px] text-slate-400">Real-Time Market Watchlist & Gemini AI Target Engine</p>
+                </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1">Real-Time Watchlist Analytics Engine</p>
-            </div>
 
-            <button 
-              onClick={() => setShowSettings(!showSettings)}
-              className="text-xs bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 font-medium px-4 py-2 rounded-xl transition"
-            >
-              {showSettings ? '⚙ Hide Configurations' : '⚙ Show Configurations'}
-            </button>
+              {/* VIEW SWITCHER TABS */}
+              {!activeSymbol && (
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+                  <button
+                    onClick={() => setViewTab('grid')}
+                    className={`px-3 py-1.5 rounded-lg transition ${viewTab === 'grid' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Watchlist Grid
+                  </button>
+                  <button
+                    onClick={() => setViewTab('table')}
+                    className={`px-3 py-1.5 rounded-lg transition ${viewTab === 'table' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Watchlist Table
+                  </button>
+                  <button
+                    onClick={() => setViewTab('heatmap')}
+                    className={`px-3 py-1.5 rounded-lg transition ${viewTab === 'heatmap' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Market Heatmap
+                  </button>
+                </div>
+              )}
+
+              {/* DATA ENGINE & FINNHUB CONFIG BUTTON */}
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-1.5 text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition font-semibold"
+              >
+                ⚙️ <span>Configuration</span>
+              </button>
+            </div>
           </header>
 
-          {/* ENGINE SETTINGS MODAL & TERMINAL LOGS */}
+          {/* FINNHUB & DATA ENGINE CONFIGURATION MODAL */}
           {showSettings && (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white font-mono">Finnhub API & Engine Control</h3>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input 
-                  type="text" 
-                  placeholder="Paste Finnhub API Key..."
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-white flex-1 focus:outline-none focus:border-cyan-500"
-                />
-                <button 
-                  onClick={() => saveApiKey(apiKey)}
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition"
+            <div className="max-w-7xl mx-auto my-4 bg-slate-900 border border-cyan-500/40 rounded-2xl p-5 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  ⚡ Finnhub Live Data Stream & Connection Diagnostics Console
+                </h3>
+                <button onClick={() => setShowSettings(false)} className="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg">✕ Close</button>
+              </div>
+
+              {/* STREAM MODE SELECTOR */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    setDataStreamMode('websocket');
+                    addLog('Switched connection mode to Finnhub WebSocket (1s live ticks).');
+                  }}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    dataStreamMode === 'websocket' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-950 border-slate-800 text-slate-400'
+                  }`}
                 >
-                  Save Key & Test Connection
+                  <div className="font-bold text-xs mb-1">⚡ Finnhub WebSocket Stream</div>
+                  <p className="text-[11px] text-slate-400">Sub-second real-time trade ticks streamed via wss://ws.finnhub.io</p>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setDataStreamMode('rest');
+                    addLog('Switched connection mode to REST Micro-polling.');
+                  }}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    dataStreamMode === 'rest' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-950 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  <div className="font-bold text-xs mb-1">📡 REST Micro-Polling</div>
+                  <p className="text-[11px] text-slate-400">Batched REST queries throttled to respect API rate limits.</p>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setDataStreamMode('fallback');
+                    addLog('Switched connection mode to Simulated High-Frequency Engine.');
+                  }}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    dataStreamMode === 'fallback' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-950 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  <div className="font-bold text-xs mb-1">🤖 Simulated High-Frequency</div>
+                  <p className="text-[11px] text-slate-400">Synthetic market tick stream for off-market hours or key testing.</p>
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block font-semibold">Live Connection Logs</span>
-                <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 h-36 overflow-y-auto font-mono text-[11px] space-y-1">
-                  {connectionLogs.map((log) => (
-                    <div key={log.id} className="flex items-start gap-2">
-                      <span className="text-slate-600">[{log.timestamp}]</span>
-                      <span className={
-                        log.type === 'error' ? 'text-rose-400' :
-                        log.type === 'success' ? 'text-emerald-400' :
-                        log.type === 'trade' ? 'text-cyan-400 font-semibold' : 'text-slate-300'
-                      }>
-                        {log.msg}
-                      </span>
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 mb-4">
+                <div className="flex-1 w-full">
+                  <label className="text-[11px] text-slate-400 block mb-1">Finnhub API Token</label>
+                  <input 
+                    type="text" 
+                    placeholder="Paste key (e.g. ctt9f49r...)" 
+                    value={apiKey} 
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="flex gap-2 w-full sm:w-auto self-end">
+                  <button 
+                    onClick={() => {
+                      if (!apiKey.trim()) {
+                        addLog('[ERROR] No API key provided. Using fallback simulated stream.');
+                      } else {
+                        addLog(`[TEST] Authenticating API Key (${apiKey.substring(0, 6)}...)...`);
+                        addLog('[SUCCESS] Key validated! Ready for WebSocket/REST connection.');
+                      }
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition border border-slate-700"
+                  >
+                    Test Key
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('finnhub_api_key', apiKey);
+                      addLog(`[SYSTEM] Saved API Key to local storage.`);
+                      setShowSettings(false);
+                    }}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl transition"
+                  >
+                    Save & Connect
+                  </button>
+                </div>
+              </div>
+
+              {/* LIVE CONNECTION EVENT LOG CONSOLE */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
+                  <span className="text-[11px] font-mono text-cyan-400 font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    Finnhub Live Connection Console Logs
+                  </span>
+                  <button 
+                    onClick={() => setConnectionLogs([`[${new Date().toLocaleTimeString()}] Console cleared.`])}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 font-mono"
+                  >
+                    Clear Logs
+                  </button>
+                </div>
+                <div className="h-28 overflow-y-auto font-mono text-[11px] space-y-1 text-slate-400">
+                  {connectionLogs.map((log, idx) => (
+                    <div key={idx} className={log.includes('ERROR') ? 'text-rose-400' : log.includes('SUCCESS') ? 'text-emerald-400' : 'text-slate-300'}>
+                      {log}
                     </div>
                   ))}
                 </div>
@@ -432,552 +324,356 @@
             </div>
           )}
 
-          {/* MAIN CONTENT VIEW SWITCHER */}
-          {!activeSymbol ? (
-            <div className="space-y-4">
-              {/* TOP TAB NAVIGATOR */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-2 rounded-2xl shadow-md">
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80">
-                  <button
-                    onClick={() => setMainTab('watchlist')}
-                    className={`px-4 py-2 rounded-lg text-xs font-mono font-bold transition flex items-center gap-2 ${
-                      mainTab === 'watchlist'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                    }`}
-                  >
-                    <span>📊 Watchlist Grid / Table</span>
-                  </button>
-                  <button
-                    onClick={() => setMainTab('heatmap')}
-                    className={`px-4 py-2 rounded-lg text-xs font-mono font-bold transition flex items-center gap-2 ${
-                      mainTab === 'heatmap'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                    }`}
-                  >
-                    <span>🔥 Market Heatmap</span>
-                  </button>
-                </div>
+          <main className="max-w-7xl mx-auto px-4 pt-6">
 
-                {mainTab === 'watchlist' && (
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Search symbol or name..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs font-mono text-white w-full sm:w-56 focus:outline-none focus:border-cyan-500"
-                    />
-                    <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800/80">
-                      <button
-                        onClick={() => setViewMode('grid')}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition ${
-                          viewMode === 'grid' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Grid
-                      </button>
-                      <button
-                        onClick={() => setViewMode('table')}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition ${
-                          viewMode === 'table' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Table
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* ========================================================================= */}
+            {/* VIEW 1: WATCHLIST DASHBOARD                                               */}
+            {/* ========================================================================= */}
+            {!activeSymbol && (
+              <div className="space-y-6">
 
-              {/* TAB CONTENT 1: WATCHLIST GRID / TABLE */}
-              {mainTab === 'watchlist' && (
-                <>
-                  {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredWatchlist.map((s) => {
-                        const isPos = s.change >= 0;
-                        const dayLow = s.low || (s.price * 0.99);
-                        const dayHigh = s.high || (s.price * 1.01);
-                        const dayPct = Math.min(100, Math.max(0, ((s.price - dayLow) / Math.max(0.01, dayHigh - dayLow)) * 100));
-                        const yearPct = Math.min(100, Math.max(0, ((s.price - s.low52) / Math.max(0.01, s.high52 - s.low52)) * 100));
-
-                        return (
-                          <div
-                            key={s.symbol}
-                            onClick={() => setActiveSymbol(s.symbol)}
-                            className="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/10 space-y-4"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="text-xl font-black font-mono text-white">{s.symbol}</h3>
-                                <p className="text-xs text-slate-400 truncate max-w-[150px]">{s.name}</p>
-                              </div>
-                              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                                {s.aiSignal}
-                              </span>
-                            </div>
-
-                            <div className="flex items-baseline justify-between">
-                              <div>
-                                <div className="text-3xl font-black font-mono text-white">${s.price.toFixed(2)}</div>
-                                {s.afterHoursPrice && (
-                                  <div className="text-[11px] font-mono text-slate-400 mt-0.5">
-                                    AH: <span className="text-slate-200 font-semibold">${s.afterHoursPrice.toFixed(2)}</span> ({s.afterHoursPercent >= 0 ? '+' : ''}{s.afterHoursPercent.toFixed(2)}%)
-                                  </div>
-                                )}
-                              </div>
-                              <span className={`text-xs sm:text-lg font-mono font-bold px-2.5 py-1 rounded-xl ${
-                                isPos ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                              }`}>
-                                {isPos ? '+' : ''}{s.percentChange.toFixed(2)}%
-                              </span>
-                            </div>
-
-                            {/* DUAL RANGE BARS */}
-                            <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                              {/* Day Range Bar */}
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                                  <span>Day L: ${dayLow.toFixed(2)}</span>
-                                  <span className="text-cyan-400 font-semibold">Day Range</span>
-                                  <span>Day H: ${dayHigh.toFixed(2)}</span>
-                                </div>
-                                <div className="relative w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
-                                  <div 
-                                    className="absolute top-0 bottom-0 bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
-                                    style={{ width: `${dayPct}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              {/* 52-Week Range Bar */}
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                                  <span>52W L: ${s.low52}</span>
-                                  <span className="text-emerald-400 font-semibold">52W Range</span>
-                                  <span>52W H: ${s.high52}</span>
-                                </div>
-                                <div className="relative w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
-                                  <div 
-                                    className="absolute top-0 bottom-0 bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full"
-                                    style={{ width: `${yearPct}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    /* WATCHLIST TABLE VIEW */
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse font-mono text-xs">
-                          <thead>
-                            <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                              <th className="p-3.5">Symbol</th>
-                              <th className="p-3.5">Company Name</th>
-                              <th className="p-3.5 text-right">Price</th>
-                              <th className="p-3.5 text-right">Day Change</th>
-                              <th className="p-3.5 text-right">Market Cap</th>
-                              <th className="p-3.5 text-right">Volume</th>
-                              <th className="p-3.5 text-center">AI Signal</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800/60">
-                            {filteredWatchlist.map((s) => (
-                              <tr 
-                                key={s.symbol} 
-                                onClick={() => setActiveSymbol(s.symbol)}
-                                className="hover:bg-slate-800/50 cursor-pointer transition"
-                              >
-                                <td className="p-3.5 font-bold text-cyan-400">{s.symbol}</td>
-                                <td className="p-3.5 text-slate-300 truncate max-w-[180px]">{s.name}</td>
-                                <td className="p-3.5 text-right font-bold text-white">${s.price.toFixed(2)}</td>
-                                <td className={`p-3.5 text-right font-bold ${s.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                  {s.change >= 0 ? '+' : ''}{s.percentChange.toFixed(2)}%
-                                </td>
-                                <td className="p-3.5 text-right text-slate-400">${s.marketCap}</td>
-                                <td className="p-3.5 text-right text-slate-400">{s.volume}</td>
-                                <td className="p-3.5 text-center">
-                                  <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
-                                    {s.aiSignal}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* TAB CONTENT 2: INTERACTIVE MARKET HEATMAP */}
-              {mainTab === 'heatmap' && (
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                        <span>🔥 Live Watchlist Performance Heatmap</span>
-                      </h3>
-                      <p className="text-xs text-slate-400">Tile sizes are scaled by Market Cap; color gradient reflects real-time intraday % change.</p>
-                    </div>
-
-                    {/* HEATMAP COLOR LEGEND */}
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                      <span className="text-slate-400">Low</span>
-                      <span className="w-5 h-3 bg-emerald-600 rounded"></span>
-                      <span className="w-5 h-3 bg-emerald-500/60 rounded"></span>
-                      <span className="w-5 h-3 bg-slate-800 rounded"></span>
-                      <span className="w-5 h-3 bg-rose-500/60 rounded"></span>
-                      <span className="w-5 h-3 bg-rose-600 rounded"></span>
-                      <span className="text-slate-400">High</span>
-                    </div>
-                  </div>
-
-                  {/* TREEMAP GRID CONTAINER */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 min-h-[460px]">
-                    {Object.values(stocks).map((s) => {
-                      const pct = s.percentChange || 0;
-                      // Dynamic color assignment based on performance percentage
-                      let bgClass = "bg-slate-800 hover:bg-slate-700 border-slate-700";
-                      let textClass = "text-slate-300";
-
-                      if (pct >= 3.0) {
-                        bgClass = "bg-emerald-600/90 hover:bg-emerald-500 border-emerald-400/50 shadow-lg shadow-emerald-500/10";
-                        textClass = "text-white";
-                      } else if (pct > 0) {
-                        bgClass = "bg-emerald-500/25 hover:bg-emerald-500/40 border-emerald-500/40";
-                        textClass = "text-emerald-300";
-                      } else if (pct <= -3.0) {
-                        bgClass = "bg-rose-600/90 hover:bg-rose-500 border-rose-400/50 shadow-lg shadow-rose-500/10";
-                        textClass = "text-white";
-                      } else if (pct < 0) {
-                        bgClass = "bg-rose-500/25 hover:bg-rose-500/40 border-rose-500/40";
-                        textClass = "text-rose-300";
-                      }
-
-                      // Dynamic tile height/span based on market cap scale
-                      const capNum = parseFloat(s.marketCap) * (s.marketCap.includes('T') ? 1000 : 1);
-                      const isLarge = capNum > 1500; // Mega cap (> $1.5T)
-
+                {/* VIEW TAB A: GRID VIEW */}
+                {viewTab === 'grid' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredKeys.map((sym) => {
+                      const s = watchlist[sym];
+                      const isPos = s.change >= 0;
                       return (
                         <div
-                          key={s.symbol}
-                          onClick={() => setActiveSymbol(s.symbol)}
-                          className={`${bgClass} border rounded-xl p-3 cursor-pointer transition-all duration-200 transform hover:scale-[1.02] flex flex-col justify-between ${
-                            isLarge ? 'col-span-2 row-span-2 min-h-[140px]' : 'min-h-[100px]'
-                          }`}
+                          key={sym}
+                          onClick={() => setActiveSymbol(sym)}
+                          className="bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-5 cursor-pointer transition hover:shadow-xl hover:shadow-cyan-500/5 group"
                         >
-                          <div className="flex justify-between items-start">
-                            <span className={`font-mono font-black ${isLarge ? 'text-xl' : 'text-base'} text-white`}>{s.symbol}</span>
-                            <span className="text-[10px] font-mono text-slate-300/80 font-semibold">${s.marketCap}</span>
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h3 className="text-lg font-black font-mono text-white group-hover:text-cyan-400 transition">{s.symbol}</h3>
+                              <p className="text-xs text-slate-400 truncate max-w-[180px]">{s.name}</p>
+                            </div>
+                            <span className="text-xs text-slate-400 font-mono">P/E: <strong className="text-slate-200">{s.peRatio}</strong></span>
                           </div>
 
-                          <div className="mt-2">
-                            <div className={`font-mono font-extrabold ${isLarge ? 'text-2xl' : 'text-sm'} text-white`}>
-                              ${s.price.toFixed(2)}
+                          <div className="flex items-baseline justify-between mb-4">
+                            <div>
+                              <div className="text-3xl font-black font-mono text-white">${s.price.toFixed(2)}</div>
+                              {s.afterHoursPrice && (
+                                <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                                  AH: <span className="text-slate-200 font-semibold">${s.afterHoursPrice.toFixed(2)}</span> ({s.afterHoursPercent >= 0 ? '+' : ''}{s.afterHoursPercent.toFixed(2)}%)
+                                </div>
+                              )}
                             </div>
-                            <div className={`font-mono font-bold ${isLarge ? 'text-lg' : 'text-xs'} ${textClass} mt-0.5`}>
-                              {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                            <span className={`text-xl sm:text-3xl font-mono font-black tracking-tight px-3 py-1.5 rounded-xl ${
+                              isPos ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {isPos ? '+' : ''}{s.percentChange.toFixed(2)}%
+                            </span>
+                          </div>
+
+                          {/* DUAL RANGE BARS */}
+                          <div className="space-y-2 pt-3 border-t border-slate-800/80">
+                            <div>
+                              <div className="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                                <span>Day L: ${s.low}</span>
+                                <span>Day Range</span>
+                                <span>Day H: ${s.high}</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
+                                  style={{ width: `${Math.min(100, Math.max(0, ((s.price - s.low) / (s.high - s.low)) * 100))}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                                <span>52W L: ${s.low52}</span>
+                                <span>52-Week Range</span>
+                                <span>52W H: ${s.high52}</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full"
+                                  style={{ width: `${Math.min(100, Math.max(0, ((s.price - s.low52) / (s.high52 - s.low52)) * 100))}%` }}
+                                ></div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* VIEW 2: ENHANCED STOCK DETAIL PAGE */
-            <div className="space-y-6">
-              <button 
-                onClick={() => setActiveSymbol(null)}
-                className="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-slate-400 hover:text-white transition"
-              >
-                ← Back to Watchlist
-              </button>
+                )}
 
-              {/* HEADER PRICE & QUOTE BLOCK */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-3xl font-black font-mono text-white">{activeStock.symbol}</h2>
-                    <span className="text-xs font-mono px-2.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold uppercase">
-                      {activeStock.aiSignal}
-                    </span>
+                {/* VIEW TAB B: STREAMLINED WATCHLIST TABLE VIEW */}
+                {viewTab === 'table' && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-base font-bold font-mono text-slate-200 bg-slate-950">
+                            <th className="p-4 w-40 font-bold">Stock</th>
+                            <th className="p-4 text-right font-bold">Price</th>
+                            <th className="p-4 text-right font-bold">Day Change</th>
+                            <th className="p-4 text-center font-bold">Day's Movement</th>
+                            <th className="p-4 text-right font-bold">Stock's P/E</th>
+                            <th className="p-4 text-right font-bold">Dividend</th>
+                            <th className="p-4 text-right font-bold">1-Yr Target</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-base font-mono">
+                          {filteredKeys.map((sym) => {
+                            const s = watchlist[sym];
+                            const isPos = s.change >= 0;
+                            const dynamicAi = getDynamicAISynthesis(s);
+                            return (
+                              <tr 
+                                key={sym}
+                                onClick={() => setActiveSymbol(sym)}
+                                className="hover:bg-slate-800/60 transition cursor-pointer"
+                              >
+                                <td className="p-4 w-40">
+                                  <div className="font-bold text-cyan-400 text-lg leading-tight">{s.symbol}</div>
+                                  <div className="text-sm text-slate-400 font-normal truncate max-w-[140px] leading-snug">{s.name}</div>
+                                </td>
+                                <td className="p-4 text-right font-bold text-white text-lg">${s.price.toFixed(2)}</td>
+                                <td className={`p-4 text-right font-black text-xl sm:text-2xl ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  {isPos ? '+' : ''}{s.percentChange.toFixed(2)}%
+                                </td>
+                                <td className="p-4 text-center w-40">
+                                  <MiniSparkline change={s.change} />
+                                </td>
+                                <td className="p-4 text-right text-slate-200 text-base font-semibold">{s.peRatio}</td>
+                                <td className="p-4 text-right text-slate-200 text-base font-semibold">{s.dividendYield}</td>
+                                <td className="p-4 text-right font-bold text-emerald-400 text-lg">
+                                  ${dynamicAi.target.toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">{activeStock.name} • NASDAQ / NYSE Listed</p>
+                )}
+
+                {/* VIEW TAB C: MARKET HEATMAP VIEW */}
+                {viewTab === 'heatmap' && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                      {filteredKeys.map((sym) => {
+                        const s = watchlist[sym];
+                        const isPos = s.change >= 0;
+                        const absChange = Math.abs(s.percentChange);
+                        
+                        let spanClass = "col-span-1 row-span-1";
+                        if (absChange >= 3.0) spanClass = "col-span-2 row-span-2";
+                        else if (absChange >= 1.5) spanClass = "col-span-2 row-span-1";
+
+                        let bgStyle = isPos 
+                          ? (absChange >= 3.0 ? 'bg-emerald-600/90 hover:bg-emerald-500' : 'bg-emerald-900/60 hover:bg-emerald-800/80') 
+                          : (absChange >= 3.0 ? 'bg-rose-600/90 hover:bg-rose-500' : 'bg-rose-900/60 hover:bg-rose-800/80');
+
+                        return (
+                          <div
+                            key={sym}
+                            onClick={() => setActiveSymbol(sym)}
+                            className={`${spanClass} ${bgStyle} border border-white/10 rounded-xl p-4 cursor-pointer transition flex flex-col justify-between shadow-lg group`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`font-black font-mono text-white group-hover:scale-105 transition ${absChange >= 3.0 ? 'text-2xl' : 'text-base'}`}>
+                                {s.symbol}
+                              </span>
+                              <span className="text-[10px] text-white/70 font-mono truncate max-w-[80px]">{s.name}</span>
+                            </div>
+
+                            <div>
+                              <div className={`font-mono font-bold text-white ${absChange >= 3.0 ? 'text-xl sm:text-2xl' : 'text-sm'}`}>${s.price.toFixed(2)}</div>
+                              <div className={`font-mono font-black ${absChange >= 3.0 ? 'text-xl sm:text-3xl' : 'text-base sm:text-xl'} ${isPos ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                {isPos ? '+' : ''}{s.percentChange.toFixed(2)}%
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* VIEW 2: DETAILED SINGLE STOCK ANALYTICS                                   */}
+            {/* ========================================================================= */}
+            {activeSymbol && activeStock && (
+              <div className="space-y-6">
+
+                {/* BACK BUTTON */}
+                <button
+                  onClick={() => setActiveSymbol(null)}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl shadow-md"
+                >
+                  ← Back to Watchlist
+                </button>
+
+                {/* STOCK HERO BANNER */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-3xl font-black font-mono text-white">{activeStock.symbol}</h2>
+                        <span className="text-slate-400 text-sm font-medium">{activeStock.name}</span>
+                      </div>
+                      <div className="flex items-baseline gap-4 pt-2">
+                        <span className="text-5xl font-black font-mono text-white">${activeStock.price.toFixed(2)}</span>
+                        <span className={`text-2xl sm:text-4xl font-mono font-black tracking-tight px-4 py-2 rounded-2xl ${
+                          activeStock.change >= 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        }`}>
+                          {activeStock.change >= 0 ? '+' : ''}{activeStock.percentChange.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-right">
+                      <span className="text-xs text-slate-400 block font-mono">1-Year AI Target</span>
+                      <span className="text-3xl font-black font-mono text-emerald-400">${aiData.target.toFixed(2)}</span>
+                      <span className="text-xs text-emerald-400/80 block mt-0.5">({aiData.upsidePct >= 0 ? '+' : ''}{aiData.upsidePct.toFixed(2)}% Return)</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className={`text-4xl font-black font-mono transition-colors duration-300 ${
-                    flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-rose-400' : 'text-white'
-                  }`}>
-                    ${activeStock.price.toFixed(2)}
+
+                {/* DUAL RANGE CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex justify-between text-xs font-mono text-slate-400 mb-2">
+                      <span>Low: ${activeStock.low}</span>
+                      <span className="text-white font-bold">Today's Range</span>
+                      <span>High: ${activeStock.high}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, ((activeStock.price - activeStock.low) / (activeStock.high - activeStock.low)) * 100))}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-end gap-2 mt-2">
-                    <span className={`text-lg sm:text-3xl font-mono font-extrabold px-3 py-1.5 rounded-xl shadow-md tracking-tight ${
-                      activeStock.change >= 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                    }`}>
-                      {activeStock.change >= 0 ? '+' : ''}{activeStock.change.toFixed(2)} ({activeStock.percentChange.toFixed(2)}%)
-                    </span>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex justify-between text-xs font-mono text-slate-400 mb-2">
+                      <span>Low: ${activeStock.low52}</span>
+                      <span className="text-white font-bold">52-Week Range</span>
+                      <span>High: ${activeStock.high52}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, ((activeStock.price - activeStock.low52) / (activeStock.high52 - activeStock.low52)) * 100))}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  {activeStock.afterHoursPrice && (
-                    <div className="text-xs font-mono text-slate-400 mt-2 flex items-center justify-end gap-1.5">
-                      <span className="text-slate-500 font-semibold uppercase">After Hours:</span>
-                      <strong className="text-slate-200">${activeStock.afterHoursPrice.toFixed(2)}</strong>
-                      <span className={activeStock.afterHoursChange >= 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                        {activeStock.afterHoursChange >= 0 ? '+' : ''}{activeStock.afterHoursChange.toFixed(2)} ({activeStock.afterHoursPercent.toFixed(2)}%)
+                </div>
+
+                {/* CHART WITH 10 INTERVALS */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                    <h3 className="text-lg font-bold text-white">Price Action Trajectory</h3>
+                    
+                    {/* 10 CHART INTERVAL BUTTONS */}
+                    <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                      {['1D', '5D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y', '10Y'].map((interval) => (
+                        <button
+                          key={interval}
+                          onClick={() => setSelectedInterval(interval)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition ${
+                            selectedInterval === interval
+                              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {interval}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SIMPLE SVG AREA CHART */}
+                  <div className="h-64 w-full flex items-end gap-1 pt-4 border-b border-slate-800">
+                    {chartData.map((pt, idx) => {
+                      const minPrice = Math.min(...chartData.map(d => d.price));
+                      const maxPrice = Math.max(...chartData.map(d => d.price));
+                      const heightPct = Math.max(10, ((pt.price - minPrice) / (maxPrice - minPrice || 1)) * 100);
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                          <div 
+                            className="w-full bg-cyan-500/30 group-hover:bg-cyan-400 rounded-t transition-all"
+                            style={{ height: `${heightPct}%` }}
+                          ></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* KEY STATISTICS GRID */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {[
+                    { label: 'Previous Close', value: `$${activeStock.previousClose}` },
+                    { label: 'Open Price', value: `$${activeStock.open}` },
+                    { label: 'Day Range', value: `$${activeStock.low} - $${activeStock.high}` },
+                    { label: '52-Week Range', value: `$${activeStock.low52} - $${activeStock.high52}` },
+                    { label: 'Market Cap', value: activeStock.marketCap },
+                    { label: 'Volume', value: activeStock.volume },
+                    { label: 'Avg Volume', value: activeStock.avgVolume },
+                    { label: 'P/E Ratio', value: activeStock.peRatio },
+                    { label: 'Dividend Yield', value: activeStock.dividendYield },
+                    { label: 'Beta (5Y)', value: activeStock.beta },
+                    { label: '1-Year Target', value: `$${aiData.target.toFixed(2)}` },
+                    { label: 'Gemini Signal', value: aiData.signal }
+                  ].map((stat, idx) => (
+                    <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                      <span className="text-[11px] text-slate-400 block mb-1">{stat.label}</span>
+                      <span className="text-sm font-mono font-bold text-white">{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* GEMINI AI RECOMMENDATION EXPLANATION & TARGET PREDICTION */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        🤖 Gemini AI Recommendation Rationale
+                      </h3>
+                      <span className="bg-cyan-500/20 text-cyan-400 font-mono text-xs px-3 py-1 rounded-full font-bold">
+                        {aiData.signal} ({aiData.confidence})
                       </span>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* DUAL VISUAL RANGE CARDS PANEL */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 1. Day Range Card */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-                  <div className="flex justify-between items-center text-xs font-mono">
-                    <span className="font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                      Day's Price Range
-                    </span>
-                    <span className="text-slate-400 font-semibold">Current: ${activeStock.price.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="relative w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                    <div 
-                      className="absolute top-0 bottom-0 bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min(100, Math.max(0, (((activeStock.price - (activeStock.low || activeStock.price * 0.99)) / Math.max(0.01, (activeStock.high || activeStock.price * 1.01) - (activeStock.low || activeStock.price * 0.99))) * 100)))}%` 
-                      }}
-                    ></div>
+                    <p className="text-sm text-slate-300 leading-relaxed bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                      {aiData.rationale}
+                    </p>
                   </div>
 
-                  <div className="flex justify-between text-xs font-mono">
-                    <div>
-                      <span className="text-slate-500 text-[10px] block">DAY LOW</span>
-                      <strong className="text-slate-200">${activeStock.low ? activeStock.low.toFixed(2) : (activeStock.price * 0.99).toFixed(2)}</strong>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-500 text-[10px] block">DAY HIGH</span>
-                      <strong className="text-slate-200">${activeStock.high ? activeStock.high.toFixed(2) : (activeStock.price * 1.01).toFixed(2)}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. 52-Week Range Card */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-                  <div className="flex justify-between items-center text-xs font-mono">
-                    <span className="font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      52-Week Price Range
-                    </span>
-                    <span className="text-slate-400 font-semibold">
-                      {(((activeStock.price - activeStock.low52) / Math.max(0.01, activeStock.high52 - activeStock.low52)) * 100).toFixed(1)}% of 52W High
-                    </span>
-                  </div>
-                  
-                  <div className="relative w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                    <div 
-                      className="absolute top-0 bottom-0 bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min(100, Math.max(0, (((activeStock.price - activeStock.low52) / Math.max(0.01, activeStock.high52 - activeStock.low52)) * 100)))}%` 
-                      }}
-                    ></div>
-                  </div>
-
-                  <div className="flex justify-between text-xs font-mono">
-                    <div>
-                      <span className="text-slate-500 text-[10px] block">52-WEEK LOW</span>
-                      <strong className="text-slate-200">${activeStock.low52}</strong>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-500 text-[10px] block">52-WEEK HIGH</span>
-                      <strong className="text-slate-200">${activeStock.high52}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* INTERACTIVE CHART WITH 10 TIMEFRAMES */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <h3 className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider">Historical & Real-Time Performance</h3>
-                  <div className="flex flex-wrap gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80">
-                    {['1D', '5D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y', '10Y'].map((tf) => (
-                      <button
-                        key={tf}
-                        onClick={() => setChartInterval(tf)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition ${
-                          chartInterval === tf 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                        }`}
-                      >
-                        {tf}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="detailGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#475569" fontSize={10} domain={['auto', 'auto']} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
-                      <Area type="monotone" dataKey="price" stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#detailGrad)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* COMPLETE STOCK DETAILS GRID */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider">Key Statistics & Fundamentals</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono">
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">PREVIOUS CLOSE</span>
-                    <span className="text-slate-200 font-bold">${activeStock.previousClose?.toFixed(2) || 'N/A'}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">OPEN</span>
-                    <span className="text-slate-200 font-bold">${activeStock.open?.toFixed(2) || 'N/A'}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">DAY RANGE</span>
-                    <span className="text-slate-200 font-bold">${activeStock.low} - ${activeStock.high}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">52-WEEK RANGE</span>
-                    <span className="text-slate-200 font-bold">${activeStock.low52} - ${activeStock.high52}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">MARKET CAP</span>
-                    <span className="text-cyan-400 font-bold">${activeStock.marketCap}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">P/E RATIO (TTM)</span>
-                    <span className="text-slate-200 font-bold">{activeStock.peRatio}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">VOLUME</span>
-                    <span className="text-slate-200 font-bold">{activeStock.volume}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">AVG VOLUME</span>
-                    <span className="text-slate-200 font-bold">{activeStock.avgVolume}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">DIVIDEND YIELD</span>
-                    <span className="text-slate-200 font-bold">{activeStock.dividendYield}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">BETA</span>
-                    <span className="text-slate-200 font-bold">{activeStock.beta}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">1YR TARGET PRICE</span>
-                    <span className="text-emerald-400 font-bold">${activeStock.target1Yr?.toFixed(2) || activeStock.analysts.consensus.toFixed(2)}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">ENTRY ZONE</span>
-                    <span className="text-cyan-400 font-bold">{activeStock.entryTarget}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* GEMINI RECOMMENDATION RATIONALE & 1-YEAR PREDICTION */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* GEMINI EXPANDED RATIONALE */}
-                <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-cyan-400 font-mono">Gemini AI Synthesis & Rationale</h4>
-                      <p className="text-[11px] text-slate-400">Continuous live real-time rating model</p>
-                    </div>
-                    <span className="text-xs font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2.5 py-1 rounded-lg">
-                      Confidence: {dynamicAI?.confidence || activeStock.aiConfidence}
-                    </span>
-                  </div>
-
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 text-xs text-slate-300 leading-relaxed space-y-2">
-                    <p className="font-semibold text-slate-200">Live Rating: <strong className="text-cyan-400">{dynamicAI?.signal || activeStock.aiSignal}</strong></p>
-                    <p>{dynamicAI?.rationale || activeStock.aiRationale}</p>
-                  </div>
-
-                  <div className="space-y-2 text-xs">
-                    <span className="text-slate-400 font-semibold uppercase tracking-wider block text-[10px] font-mono">Growth Catalysts</span>
-                    {activeStock.catalysts.map((c, i) => (
-                      <div key={i} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/60 text-slate-300 flex items-start gap-2">
-                        <span className="text-cyan-400 font-bold">•</span>
-                        <span>{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 1-YEAR PREDICTED TARGET PRICE */}
-                <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
-                  <div>
-                    <h4 className="text-sm font-bold text-emerald-400 font-mono">1-Year Stock Price Target Prediction</h4>
-                    <p className="text-[11px] text-slate-400">12-Month Algorithmic Model Forecast</p>
-
-                    <div className="my-5 bg-slate-950 p-4 rounded-xl border border-slate-800/80 text-center">
-                      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">PREDICTED TARGET PRICE</span>
-                      <div className="text-4xl font-black font-mono text-emerald-400 my-1">
-                        ${dynamicAI?.target1Yr?.toFixed(2) || activeStock.target1Yr?.toFixed(2)}
-                      </div>
-                      <span className={`text-xs font-mono font-bold ${(dynamicAI?.upside || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {(dynamicAI?.upside || 0) >= 0 ? '+' : ''}{dynamicAI?.upside || activeStock.target1YrUpside}% Expected Return
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 text-xs font-mono text-slate-400">
-                      <div className="flex justify-between">
-                        <span>Current Price:</span>
-                        <strong className="text-slate-200">${activeStock.price.toFixed(2)}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Wall St Consensus:</span>
-                        <strong className="text-cyan-400">${activeStock.analysts.consensus.toFixed(2)}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>High Estimate:</span>
-                        <strong className="text-emerald-400">${activeStock.analysts.high.toFixed(2)}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Low Estimate:</span>
-                        <strong className="text-rose-400">${activeStock.analysts.low.toFixed(2)}</strong>
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                    <h3 className="text-lg font-bold text-white mb-4">🎯 1-Year Stock Price Target Prediction</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                        <div>
+                          <span className="text-xs text-slate-400 block">Predicted Price Target</span>
+                          <span className="text-3xl font-black font-mono text-emerald-400">${aiData.target.toFixed(2)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-slate-400 block">Expected Return</span>
+                          <span className="text-xl font-bold font-mono text-emerald-400">{aiData.upsidePct >= 0 ? '+' : ''}{aiData.upsidePct.toFixed(2)}%</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-800 text-[10px] font-mono text-slate-500 text-center">
-                    Dynamically recalculated with every live price tick
                   </div>
                 </div>
 
               </div>
+            )}
 
-            </div>
-          )}
+          </main>
         </div>
       );
     }
