@@ -99,6 +99,7 @@ function setQuote(sym, q) {
   if (!q || !num(q.c) || q.c === 0) { d.unavailable = 'No quote returned for this symbol'; log('WARN', sym + ': no quote returned · check the symbol'); dirty = true; return; }
   d.unavailable = null; d.q = q; d.t = (q.t || 0) * 1000; d.live = false;
   if (!d.ticks.length) { d.ticks = [q.pc, q.o, q.c].filter((v) => num(v) && v > 0); d.lastTick = Date.now(); } else pushTick(d, q.c);
+  subscribe(sym);
   dirty = true;
 }
 function pushTick(d, p) {
@@ -143,14 +144,20 @@ function fetchNews(sym) {
 }
 
 /* ---------- Finnhub WebSocket (live trades) ---------- */
+// Subscribe only to symbols Finnhub has already returned a quote for, so unsupported ones are never sent.
+function subscribe(sym) {
+  const d = D(sym);
+  if (!ws || S.wsState !== 'open' || d.sub || !d.q || d.unavailable) return;
+  try { ws.send(JSON.stringify({ type: 'subscribe', symbol: sym })); d.sub = true; } catch (e) {}
+}
 function wsConnect() {
   if (!S.key || S.authError) return;
   if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} }
   S.wsState = 'connecting'; log('INFO', 'Finnhub WebSocket connecting');
   try { ws = new WebSocket(WS_URL + '?token=' + encodeURIComponent(S.key)); } catch (e) { S.wsState = 'closed'; return; }
   ws.onopen = () => {
-    S.wsState = 'open'; wsRetry = 0; log('INFO', 'Finnhub WebSocket connected · subscribing to ' + S.symbols.length + ' symbols');
-    S.symbols.forEach((s) => ws.send(JSON.stringify({ type: 'subscribe', symbol: s })));
+    S.wsState = 'open'; wsRetry = 0; log('INFO', 'Finnhub WebSocket connected');
+    S.symbols.forEach((s) => { D(s).sub = false; subscribe(s); });
     updateStatus();
   };
   ws.onmessage = (ev) => {
@@ -163,7 +170,7 @@ function wsConnect() {
         d.t = tr.t || Date.now(); d.live = true; pushTick(d, tr.p);
       });
       S.lastOk = Date.now(); dirty = true;
-    } else if (m.type === 'error') { log('ERROR', 'Finnhub WebSocket: ' + (m.msg || 'error')); }
+    } else if (m.type === 'error') { log(/invalid symbol/i.test(m.msg || '') ? 'WARN' : 'ERROR', 'Finnhub WebSocket: ' + (m.msg || 'error')); }
   };
   ws.onerror = () => { log('ERROR', 'Finnhub WebSocket error'); };
   ws.onclose = () => {
